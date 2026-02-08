@@ -614,121 +614,576 @@ elif page == "💰 Kalkulator Pajak":
         
         st.markdown("</div>", unsafe_allow_html=True)
     
-    # PPh Badan Calculator
+    # PPh Badan Calculator - ADVANCED
     with tax_tab[3]:
         st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.subheader("📊 Kalkulator PPh Badan - Pajak Perusahaan")
-        st.caption("Hitung pajak penghasilan perusahaan")
+        st.subheader("📊 Kalkulator PPh Badan Advanced - Pajak Perusahaan")
+        st.caption("Perhitungan pajak perusahaan dengan fitur advanced: PPh 25, proyeksi, dan tax planning")
         
-        col1, col2 = st.columns([1, 1])
+        # Sub-tabs for advanced features
+        pph_badan_tabs = st.tabs(["💼 Perhitungan Dasar", "📅 PPh 25 (Angsuran)", "📈 Proyeksi Multi-Tahun", "⚖️ Perbandingan Skenario", "💡 Tax Planning"])
         
-        with col1:
-            st.markdown("#### Input Data Keuangan")
+        # Tab 1: Basic Calculation
+        with pph_badan_tabs[0]:
+            col1, col2 = st.columns([1, 1])
             
-            omzet = st.number_input(
-                "Omzet/Peredaran Bruto Tahunan (Rp)",
-                min_value=0,
-                value=1000000000,
-                step=10000000,
-                format="%d"
-            )
-            
-            biaya = st.number_input(
-                "Biaya Operasional (Rp)",
-                min_value=0,
-                value=500000000,
-                step=10000000,
-                format="%d"
-            )
-            
-            penghasilan_lain = st.number_input(
-                "Penghasilan Lain (Rp)",
-                min_value=0,
-                value=0,
-                step=1000000,
-                format="%d"
-            )
-            
-            koreksi_fiskal = st.number_input(
-                "Koreksi Fiskal (Rp)",
-                value=0,
-                step=1000000,
-                format="%d",
-                help="Positif untuk menambah, negatif untuk mengurangi"
-            )
-            
-            is_umkm = st.checkbox("UMKM (Omzet < 4.8 Miliar)", value=False)
-            
-            if st.button("🧮 Hitung PPh Badan", use_container_width=True):
-                # Calculate taxable income
-                laba_kotor = omzet - biaya + penghasilan_lain
-                laba_fiskal = laba_kotor + koreksi_fiskal
+            with col1:
+                st.markdown("#### Input Data Keuangan")
                 
-                # Calculate tax
-                if is_umkm and omzet <= 4800000000:
-                    # UMKM gets special rate
-                    if laba_fiskal <= 500000000:
-                        pph_badan = laba_fiskal * 0.11
+                omzet = st.number_input(
+                    "Omzet/Peredaran Bruto Tahunan (Rp)",
+                    min_value=0,
+                    value=1000000000,
+                    step=10000000,
+                    format="%d",
+                    key="omzet_basic"
+                )
+                
+                biaya = st.number_input(
+                    "Biaya Operasional (Rp)",
+                    min_value=0,
+                    value=500000000,
+                    step=10000000,
+                    format="%d",
+                    key="biaya_basic"
+                )
+                
+                penghasilan_lain = st.number_input(
+                    "Penghasilan Lain (Rp)",
+                    min_value=0,
+                    value=0,
+                    step=1000000,
+                    format="%d",
+                    key="penghasilan_lain_basic"
+                )
+                
+                st.markdown("##### Koreksi Fiskal")
+                
+                biaya_tidak_deductible = st.number_input(
+                    "Biaya Tidak Dapat Dikurangkan (Rp)",
+                    min_value=0,
+                    value=0,
+                    step=1000000,
+                    format="%d",
+                    help="Contoh: sumbangan, sanksi pajak, natura"
+                )
+                
+                penghasilan_final = st.number_input(
+                    "Penghasilan Kena Pajak Final (Rp)",
+                    min_value=0,
+                    value=0,
+                    step=1000000,
+                    format="%d",
+                    help="Penghasilan yang sudah dipotong PPh Final"
+                )
+                
+                koreksi_lainnya = st.number_input(
+                    "Koreksi Fiskal Lainnya (Rp)",
+                    value=0,
+                    step=1000000,
+                    format="%d",
+                    help="Positif untuk menambah, negatif untuk mengurangi"
+                )
+                
+                is_umkm = st.checkbox("UMKM (Omzet < 4.8 Miliar)", value=False, key="umkm_basic")
+                
+                st.markdown("##### Kredit Pajak")
+                
+                pph_pasal_22 = st.number_input(
+                    "PPh Pasal 22 yang Dipungut (Rp)",
+                    min_value=0,
+                    value=0,
+                    step=100000,
+                    format="%d"
+                )
+                
+                pph_pasal_23 = st.number_input(
+                    "PPh Pasal 23 yang Dipotong (Rp)",
+                    min_value=0,
+                    value=0,
+                    step=100000,
+                    format="%d"
+                )
+                
+                if st.button("🧮 Hitung PPh Badan", use_container_width=True, key="calc_basic"):
+                    # Calculate taxable income
+                    laba_kotor = omzet - biaya + penghasilan_lain
+                    
+                    # Fiscal corrections
+                    koreksi_fiskal_total = biaya_tidak_deductible - penghasilan_final + koreksi_lainnya
+                    laba_fiskal = laba_kotor + koreksi_fiskal_total
+                    
+                    # Calculate tax
+                    if is_umkm and omzet <= 4800000000:
+                        # UMKM gets special rate
+                        if laba_fiskal <= 500000000:
+                            pph_badan_terutang = laba_fiskal * 0.11
+                            tarif_efektif = 11
+                        else:
+                            pph_badan_terutang = 500000000 * 0.11 + (laba_fiskal - 500000000) * 0.22
+                            tarif_efektif = (pph_badan_terutang / laba_fiskal * 100) if laba_fiskal > 0 else 0
                     else:
-                        pph_badan = 500000000 * 0.11 + (laba_fiskal - 500000000) * 0.22
-                else:
-                    pph_badan = laba_fiskal * 0.22
-                
-                laba_netto = laba_fiskal - pph_badan
-                
-                st.session_state.pph_badan_result = {
-                    'omzet': omzet,
-                    'biaya': biaya,
-                    'laba_kotor': laba_kotor,
-                    'koreksi': koreksi_fiskal,
-                    'laba_fiskal': laba_fiskal,
-                    'pph_badan': pph_badan,
-                    'laba_netto': laba_netto,
-                    'is_umkm': is_umkm
-                }
-        
-        with col2:
-            st.markdown("#### Hasil Perhitungan")
+                        pph_badan_terutang = laba_fiskal * 0.22
+                        tarif_efektif = 22
+                    
+                    # Tax credits
+                    total_kredit_pajak = pph_pasal_22 + pph_pasal_23
+                    pph_kurang_bayar = pph_badan_terutang - total_kredit_pajak
+                    
+                    laba_netto = laba_fiskal - pph_badan_terutang
+                    
+                    st.session_state.pph_badan_result = {
+                        'omzet': omzet,
+                        'biaya': biaya,
+                        'penghasilan_lain': penghasilan_lain,
+                        'laba_kotor': laba_kotor,
+                        'koreksi_fiskal': koreksi_fiskal_total,
+                        'laba_fiskal': laba_fiskal,
+                        'pph_badan': pph_badan_terutang,
+                        'tarif_efektif': tarif_efektif,
+                        'kredit_pajak': total_kredit_pajak,
+                        'pph_kurang_bayar': pph_kurang_bayar,
+                        'laba_netto': laba_netto,
+                        'is_umkm': is_umkm
+                    }
             
-            if 'pph_badan_result' in st.session_state:
-                result = st.session_state.pph_badan_result
+            with col2:
+                st.markdown("#### Hasil Perhitungan")
                 
-                st.metric("Laba Kotor", f"Rp {result['laba_kotor']:,.0f}")
-                st.metric("Laba Fiskal (PKP)", f"Rp {result['laba_fiskal']:,.0f}")
-                st.metric("PPh Badan", f"Rp {result['pph_badan']:,.0f}",
-                         delta=f"{(result['pph_badan']/result['laba_fiskal']*100):.2f}%" if result['laba_fiskal'] > 0 else "0%")
-                st.metric("Laba Netto", f"Rp {result['laba_netto']:,.0f}")
+                if 'pph_badan_result' in st.session_state:
+                    result = st.session_state.pph_badan_result
+                    
+                    # Key Metrics
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.metric("Laba Kotor", f"Rp {result['laba_kotor']:,.0f}")
+                        st.metric("Laba Fiskal (PKP)", f"Rp {result['laba_fiskal']:,.0f}")
+                    
+                    with col_b:
+                        st.metric("PPh Badan Terutang", f"Rp {result['pph_badan']:,.0f}",
+                                 delta=f"{result['tarif_efektif']:.2f}%")
+                        st.metric("PPh Kurang/(Lebih) Bayar", f"Rp {result['pph_kurang_bayar']:,.0f}")
+                    
+                    if result['is_umkm']:
+                        st.success("✅ Mendapat fasilitas tarif UMKM")
+                    
+                    st.markdown("---")
+                    
+                    # Detailed Breakdown
+                    st.markdown("##### Rincian Perhitungan")
+                    detail_df = pd.DataFrame({
+                        'Keterangan': [
+                            'Omzet',
+                            'Biaya Operasional',
+                            'Penghasilan Lain',
+                            'Laba Kotor',
+                            'Koreksi Fiskal',
+                            'Laba Fiskal (PKP)',
+                            'PPh Badan Terutang',
+                            'Kredit Pajak',
+                            'PPh Kurang Bayar',
+                            'Laba Netto'
+                        ],
+                        'Jumlah (Rp)': [
+                            f"{result['omzet']:,.0f}",
+                            f"({result['biaya']:,.0f})",
+                            f"{result['penghasilan_lain']:,.0f}",
+                            f"{result['laba_kotor']:,.0f}",
+                            f"{result['koreksi_fiskal']:,.0f}",
+                            f"{result['laba_fiskal']:,.0f}",
+                            f"({result['pph_badan']:,.0f})",
+                            f"{result['kredit_pajak']:,.0f}",
+                            f"({result['pph_kurang_bayar']:,.0f})",
+                            f"{result['laba_netto']:,.0f}"
+                        ]
+                    })
+                    
+                    st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                    
+                    # Download
+                    st.download_button(
+                        "📥 Download Hasil (CSV)",
+                        detail_df.to_csv(index=False).encode('utf-8'),
+                        "hasil_pph_badan.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                else:
+                    st.info("👈 Masukkan data dan klik tombol Hitung untuk melihat hasil")
+        
+        # Tab 2: PPh 25 (Installments)
+        with pph_badan_tabs[1]:
+            st.markdown("#### Perhitungan Angsuran PPh Pasal 25")
+            st.caption("Hitung angsuran pajak bulanan berdasarkan pajak tahun sebelumnya")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                pph_tahun_lalu = st.number_input(
+                    "PPh Badan Tahun Lalu (Rp)",
+                    min_value=0,
+                    value=50000000,
+                    step=1000000,
+                    format="%d",
+                    help="PPh Badan terutang tahun pajak sebelumnya"
+                )
                 
-                if result['is_umkm']:
-                    st.success("✅ Mendapat fasilitas tarif UMKM")
+                kredit_pajak_tahun_lalu = st.number_input(
+                    "Kredit Pajak Tahun Lalu (Rp)",
+                    min_value=0,
+                    value=0,
+                    step=100000,
+                    format="%d",
+                    help="PPh 22, PPh 23 tahun lalu"
+                )
                 
-                st.markdown("---")
+                bulan_berjalan = st.slider(
+                    "Bulan Berjalan",
+                    min_value=1,
+                    max_value=12,
+                    value=6,
+                    help="Untuk menghitung total angsuran yang sudah dibayar"
+                )
                 
-                # Breakdown
-                detail_df = pd.DataFrame({
-                    'Keterangan': [
-                        'Omzet',
-                        'Biaya Operasional',
-                        'Laba Kotor',
-                        'Koreksi Fiskal',
-                        'Laba Fiskal',
-                        'PPh Badan',
-                        'Laba Netto'
-                    ],
-                    'Jumlah (Rp)': [
-                        f"{result['omzet']:,.0f}",
-                        f"({result['biaya']:,.0f})",
-                        f"{result['laba_kotor']:,.0f}",
-                        f"{result['koreksi']:,.0f}",
-                        f"{result['laba_fiskal']:,.0f}",
-                        f"({result['pph_badan']:,.0f})",
-                        f"{result['laba_netto']:,.0f}"
-                    ]
-                })
+                if st.button("🧮 Hitung PPh 25", use_container_width=True):
+                    # PPh 25 calculation
+                    pph_netto_tahun_lalu = pph_tahun_lalu - kredit_pajak_tahun_lalu
+                    pph_25_bulanan = pph_netto_tahun_lalu / 12
+                    total_angsuran_dibayar = pph_25_bulanan * bulan_berjalan
+                    sisa_angsuran = pph_25_bulanan * (12 - bulan_berjalan)
+                    
+                    st.session_state.pph25_result = {
+                        'pph_tahun_lalu': pph_tahun_lalu,
+                        'kredit_pajak': kredit_pajak_tahun_lalu,
+                        'pph_netto': pph_netto_tahun_lalu,
+                        'pph25_bulanan': pph_25_bulanan,
+                        'bulan_berjalan': bulan_berjalan,
+                        'total_dibayar': total_angsuran_dibayar,
+                        'sisa_angsuran': sisa_angsuran
+                    }
+            
+            with col2:
+                if 'pph25_result' in st.session_state:
+                    result = st.session_state.pph25_result
+                    
+                    st.metric("PPh 25 per Bulan", f"Rp {result['pph25_bulanan']:,.0f}")
+                    st.metric("Total Angsuran s.d. Bulan Ini", f"Rp {result['total_dibayar']:,.0f}")
+                    st.metric("Sisa Angsuran", f"Rp {result['sisa_angsuran']:,.0f}")
+                    
+                    st.markdown("---")
+                    st.markdown("##### Jadwal Angsuran PPh 25")
+                    
+                    # Create monthly schedule
+                    bulan_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+                    schedule_data = []
+                    
+                    for i in range(12):
+                        status = "✅ Dibayar" if i < result['bulan_berjalan'] else "⏳ Belum Bayar"
+                        schedule_data.append({
+                            'Bulan': bulan_names[i],
+                            'Angsuran (Rp)': f"{result['pph25_bulanan']:,.0f}",
+                            'Status': status
+                        })
+                    
+                    schedule_df = pd.DataFrame(schedule_data)
+                    st.dataframe(schedule_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("👈 Masukkan data untuk menghitung PPh 25")
+        
+        # Tab 3: Multi-Year Projection
+        with pph_badan_tabs[2]:
+            st.markdown("#### Proyeksi Pajak Multi-Tahun")
+            st.caption("Proyeksikan pajak perusahaan untuk 3-5 tahun ke depan")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                omzet_awal = st.number_input(
+                    "Omzet Tahun Ini (Rp)",
+                    min_value=0,
+                    value=1000000000,
+                    step=10000000,
+                    format="%d",
+                    key="omzet_proj"
+                )
                 
-                st.dataframe(detail_df, use_container_width=True, hide_index=True)
-            else:
-                st.info("👈 Masukkan data dan klik tombol Hitung untuk melihat hasil")
+                pertumbuhan_omzet = st.slider(
+                    "Proyeksi Pertumbuhan Omzet (%/tahun)",
+                    min_value=0,
+                    max_value=50,
+                    value=15,
+                    step=1
+                )
+                
+                margin_laba = st.slider(
+                    "Margin Laba Kotor (%)",
+                    min_value=0,
+                    max_value=100,
+                    value=50,
+                    step=1
+                )
+                
+                tahun_proyeksi = st.selectbox(
+                    "Periode Proyeksi",
+                    [3, 4, 5],
+                    index=0
+                )
+                
+                is_umkm_proj = st.checkbox("UMKM", value=False, key="umkm_proj")
+                
+                if st.button("📈 Buat Proyeksi", use_container_width=True):
+                    proyeksi_data = []
+                    
+                    for tahun in range(tahun_proyeksi):
+                        omzet_tahun = omzet_awal * ((1 + pertumbuhan_omzet/100) ** tahun)
+                        laba_kotor = omzet_tahun * (margin_laba / 100)
+                        
+                        # Calculate tax
+                        if is_umkm_proj and omzet_tahun <= 4800000000:
+                            if laba_kotor <= 500000000:
+                                pajak = laba_kotor * 0.11
+                            else:
+                                pajak = 500000000 * 0.11 + (laba_kotor - 500000000) * 0.22
+                        else:
+                            pajak = laba_kotor * 0.22
+                        
+                        laba_netto = laba_kotor - pajak
+                        
+                        proyeksi_data.append({
+                            'Tahun': f"Tahun {tahun + 1}",
+                            'Omzet': omzet_tahun,
+                            'Laba Kotor': laba_kotor,
+                            'PPh Badan': pajak,
+                            'Laba Netto': laba_netto
+                        })
+                    
+                    st.session_state.proyeksi_result = proyeksi_data
+            
+            with col2:
+                if 'proyeksi_result' in st.session_state:
+                    data = st.session_state.proyeksi_result
+                    
+                    # Display table
+                    display_df = pd.DataFrame(data)
+                    display_df['Omzet'] = display_df['Omzet'].apply(lambda x: f"Rp {x:,.0f}")
+                    display_df['Laba Kotor'] = display_df['Laba Kotor'].apply(lambda x: f"Rp {x:,.0f}")
+                    display_df['PPh Badan'] = display_df['PPh Badan'].apply(lambda x: f"Rp {x:,.0f}")
+                    display_df['Laba Netto'] = display_df['Laba Netto'].apply(lambda x: f"Rp {x:,.0f}")
+                    
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                    
+                    # Chart
+                    st.markdown("##### Grafik Proyeksi")
+                    
+                    chart_data = pd.DataFrame(data)
+                    
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        name='Omzet',
+                        x=chart_data['Tahun'],
+                        y=chart_data['Omzet'],
+                        marker_color='#667eea'
+                    ))
+                    fig.add_trace(go.Bar(
+                        name='Laba Netto',
+                        x=chart_data['Tahun'],
+                        y=chart_data['Laba Netto'],
+                        marker_color='#764ba2'
+                    ))
+                    fig.add_trace(go.Bar(
+                        name='PPh Badan',
+                        x=chart_data['Tahun'],
+                        y=chart_data['PPh Badan'],
+                        marker_color='#f093fb'
+                    ))
+                    
+                    fig.update_layout(
+                        barmode='group',
+                        height=400,
+                        xaxis_title="Tahun",
+                        yaxis_title="Jumlah (Rp)",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("👈 Masukkan parameter proyeksi")
+        
+        # Tab 4: Scenario Comparison
+        with pph_badan_tabs[3]:
+            st.markdown("#### Perbandingan Skenario UMKM vs Non-UMKM")
+            st.caption("Bandingkan beban pajak dengan status UMKM dan Non-UMKM")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                omzet_skenario = st.number_input(
+                    "Omzet Tahunan (Rp)",
+                    min_value=0,
+                    value=3000000000,
+                    step=100000000,
+                    format="%d",
+                    key="omzet_skenario"
+                )
+                
+                margin_skenario = st.slider(
+                    "Margin Laba (%)",
+                    min_value=0,
+                    max_value=100,
+                    value=40,
+                    step=1,
+                    key="margin_skenario"
+                )
+                
+                if st.button("⚖️ Bandingkan Skenario", use_container_width=True):
+                    laba_kotor = omzet_skenario * (margin_skenario / 100)
+                    
+                    # Scenario 1: UMKM
+                    if omzet_skenario <= 4800000000:
+                        if laba_kotor <= 500000000:
+                            pajak_umkm = laba_kotor * 0.11
+                        else:
+                            pajak_umkm = 500000000 * 0.11 + (laba_kotor - 500000000) * 0.22
+                    else:
+                        pajak_umkm = laba_kotor * 0.22  # Tidak eligible UMKM
+                    
+                    # Scenario 2: Non-UMKM
+                    pajak_non_umkm = laba_kotor * 0.22
+                    
+                    # Calculate savings
+                    penghematan = pajak_non_umkm - pajak_umkm
+                    persentase_hemat = (penghematan / pajak_non_umkm * 100) if pajak_non_umkm > 0 else 0
+                    
+                    st.session_state.skenario_result = {
+                        'omzet': omzet_skenario,
+                        'laba_kotor': laba_kotor,
+                        'pajak_umkm': pajak_umkm,
+                        'pajak_non_umkm': pajak_non_umkm,
+                        'penghematan': penghematan,
+                        'persentase_hemat': persentase_hemat,
+                        'eligible_umkm': omzet_skenario <= 4800000000
+                    }
+            
+            with col2:
+                if 'skenario_result' in st.session_state:
+                    result = st.session_state.skenario_result
+                    
+                    if result['eligible_umkm']:
+                        st.success("✅ Eligible untuk fasilitas UMKM")
+                    else:
+                        st.warning("⚠️ Omzet melebihi batas UMKM (4.8 Miliar)")
+                    
+                    st.markdown("##### Perbandingan Pajak")
+                    
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.metric("PPh Badan (UMKM)", f"Rp {result['pajak_umkm']:,.0f}")
+                    with col_b:
+                        st.metric("PPh Badan (Non-UMKM)", f"Rp {result['pajak_non_umkm']:,.0f}")
+                    
+                    if result['penghematan'] > 0:
+                        st.success(f"💰 Penghematan dengan UMKM: **Rp {result['penghematan']:,.0f}** ({result['persentase_hemat']:.2f}%)")
+                    
+                    # Comparison chart
+                    fig = go.Figure(data=[
+                        go.Bar(
+                            name='UMKM',
+                            x=['PPh Badan'],
+                            y=[result['pajak_umkm']],
+                            marker_color='#667eea',
+                            text=[f"Rp {result['pajak_umkm']:,.0f}"],
+                            textposition='auto'
+                        ),
+                        go.Bar(
+                            name='Non-UMKM',
+                            x=['PPh Badan'],
+                            y=[result['pajak_non_umkm']],
+                            marker_color='#f093fb',
+                            text=[f"Rp {result['pajak_non_umkm']:,.0f}"],
+                            textposition='auto'
+                        )
+                    ])
+                    
+                    fig.update_layout(
+                        barmode='group',
+                        height=300,
+                        yaxis_title="Pajak (Rp)",
+                        showlegend=True
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("👈 Masukkan data untuk perbandingan")
+        
+        # Tab 5: Tax Planning Recommendations
+        with pph_badan_tabs[4]:
+            st.markdown("#### Rekomendasi Tax Planning")
+            st.caption("Strategi optimasi pajak yang legal dan sesuai regulasi")
+            
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 10px; color: white; margin-bottom: 1rem;'>
+                <h4>💡 Strategi Pengurangan Beban Pajak</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("##### 1. Manfaatkan Fasilitas UMKM")
+                st.write("""
+                - Tarif 11% untuk PKP ≤ 500 juta (vs 22%)
+                - Syarat: Omzet ≤ 4.8 miliar/tahun
+                - Penghematan signifikan untuk perusahaan kecil
+                """)
+                
+                st.markdown("##### 2. Optimalkan Biaya Deductible")
+                st.write("""
+                - Biaya R&D dan pelatihan karyawan
+                - Biaya promosi dan iklan
+                - Biaya CSR (sesuai ketentuan)
+                - Penyusutan aset tetap
+                """)
+                
+                st.markdown("##### 3. Manfaatkan Kredit Pajak")
+                st.write("""
+                - PPh Pasal 22 (impor/pembelian)
+                - PPh Pasal 23 (jasa/dividen)
+                - PPh Pasal 24 (luar negeri)
+                """)
+            
+            with col2:
+                st.markdown("##### 4. Perencanaan Investasi")
+                st.write("""
+                - Tax holiday untuk industri tertentu
+                - Tax allowance untuk investasi besar
+                - Super deduction untuk vokasi & R&D
+                """)
+                
+                st.markdown("##### 5. Timing Strategy")
+                st.write("""
+                - Percepat biaya di akhir tahun
+                - Tunda penghasilan ke tahun berikutnya
+                - Optimalkan PPh 25 (angsuran)
+                """)
+                
+                st.markdown("##### 6. Restrukturisasi Bisnis")
+                st.write("""
+                - Pisahkan unit bisnis jika perlu
+                - Pertimbangkan holding company
+                - Evaluasi struktur kepemilikan
+                """)
+            
+            st.markdown("---")
+            
+            st.warning("""
+            ⚠️ **Disclaimer**: Semua strategi tax planning harus dilakukan sesuai dengan peraturan perpajakan yang berlaku. 
+            Konsultasikan dengan konsultan pajak profesional sebelum mengimplementasikan strategi apapun.
+            """)
+            
+            st.info("""
+            📞 **Butuh Konsultasi?**  
+            Hubungi tim TaxPro Indonesia untuk konsultasi tax planning yang disesuaikan dengan kondisi perusahaan Anda.
+            """)
         
         st.markdown("</div>", unsafe_allow_html=True)
 
