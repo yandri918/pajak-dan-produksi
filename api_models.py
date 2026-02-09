@@ -79,7 +79,7 @@ class PPNRequest(BaseModel):
             }
         }
 
-class PPh BadanRequest(BaseModel):
+class PPhBadanRequest(BaseModel):
     omzet: float = Field(..., gt=0, description="Omzet tahunan")
     biaya_operasional: float = Field(..., ge=0, description="Biaya operasional")
     koreksi_fiskal: float = Field(default=0, description="Koreksi fiskal")
