@@ -7,26 +7,21 @@ from fastapi import FastAPI, HTTPException, Depends, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
-from typing import Optional
-import os
-
-# Import models
-from api_models import *
-
-# Import calculation functions (we'll create a tax_calculator module)
-from tax_calculator import (
-    calculate_pph21_api, calculate_pph23_api, calculate_ppn_api,
-    calculate_pph_badan_api, calculate_pbb_api, calculate_pkb_api,
-    calculate_bphtb_api
-)
-
 # Import other services
 from ai_tax_advisor import get_ai_response
 from pdf_generator import generate_tax_report_pdf
-from cfo_dashboard_data import (
-    load_from_audit_trail, generate_sample_tax_data,
-    process_tax_data_for_dashboard
-)
+
+# Conditional import for dashboard data (heavy dependencies)
+try:
+    import pandas as pd
+    from cfo_dashboard_data import (
+        load_from_audit_trail, generate_sample_tax_data,
+        process_tax_data_for_dashboard
+    )
+    DASHBOARD_AVAILABLE = True
+except ImportError:
+    DASHBOARD_AVAILABLE = False
+    print("Warning: Dashboard module not available (pandas/numpy missing)")
 
 # ============================================================================
 # FastAPI Application
@@ -184,7 +179,7 @@ async def api_calculate_ppn(request: PPNRequest):
           tags=["Tax Calculations"],
           summary="Calculate PPh Badan (Corporate Tax)",
           dependencies=[Depends(verify_api_key)])
-async def api_calculate_pph_badan(request: PPh BadanRequest):
+async def api_calculate_pph_badan(request: PPhBadanRequest):
     """
     Calculate PPh Badan (Pajak Penghasilan Badan) - Corporate Income Tax
     
@@ -311,6 +306,19 @@ async def get_dashboard_summary(
     - **data_source**: Data source (sample, audit_trail, database)
     """
     try:
+        if not DASHBOARD_AVAILABLE:
+            return SuccessResponse(
+                data={
+                    "total_tax_ytd": 0,
+                    "pph21_ytd": 0,
+                    "pph_badan_ytd": 0,
+                    "tax_efficiency": 0,
+                    "period": {"start": start_date, "end": end_date},
+                    "note": "Dashboard analytics unavailable in this environment"
+                },
+                message="Dashboard module not available"
+            )
+
         # Load data based on source
         if data_source == "audit_trail":
             raw_data = load_from_audit_trail()
@@ -424,6 +432,20 @@ async def http_exception_handler(request, exc):
             "error": {
                 "code": exc.status_code,
                 "message": exc.detail
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "error": {
+                "code": 500,
+                "message": "Internal Server Error: " + str(exc)
             },
             "timestamp": datetime.now().isoformat()
         }

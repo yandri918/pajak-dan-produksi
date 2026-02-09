@@ -1120,7 +1120,7 @@ elif page == "💰 Kalkulator Pajak":
                         calc_type="PPN",
                         user_name=st.session_state.get('user_name', 'Anonymous'),
                         company_name=st.session_state.get('company_name', 'N/A'),
-                        input_data={'jenis': jenis_hitung, 'jumlah': jumlah, 'tarif': tarif * 100},
+                        input_data={'jenis': jenis_hitung, 'jumlah': jumlah, 'tarif': result['tarif']},
                         output_data=result
                     )
                     st.download_button(
