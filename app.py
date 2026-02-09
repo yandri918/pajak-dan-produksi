@@ -198,22 +198,26 @@ with st.sidebar:
     st.markdown("---")
     
     # User Info for Audit Trail
-    st.markdown("### 👤 Info Pengguna")
+    st.markdown("### 👤 **Info Pengguna**")
+    st.markdown("**Untuk keperluan Audit Trail**")
+    
     if 'user_name' not in st.session_state:
         st.session_state.user_name = ""
     if 'company_name' not in st.session_state:
         st.session_state.company_name = ""
     
     st.session_state.user_name = st.text_input(
-        "Nama Pengguna",
+        "**Nama Pengguna** 👤",
         value=st.session_state.user_name,
-        placeholder="Masukkan nama Anda"
+        placeholder="Masukkan nama Anda",
+        help="Nama ini akan tercatat di audit trail"
     )
     
     st.session_state.company_name = st.text_input(
-        "Nama Perusahaan",
+        "**Nama Perusahaan** 🏢",
         value=st.session_state.company_name,
-        placeholder="Masukkan nama perusahaan"
+        placeholder="Masukkan nama perusahaan",
+        help="Nama perusahaan untuk audit trail"
     )
     
     st.markdown("---")
