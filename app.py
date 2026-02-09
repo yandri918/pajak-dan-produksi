@@ -5,6 +5,7 @@ import plotly.express as px
 from datetime import datetime
 from audit_logger import save_audit_log, load_audit_logs, export_audit_logs, get_audit_summary
 from pdf_generator import generate_tax_report_pdf
+from ai_tax_advisor import get_ai_response, get_suggested_questions
 
 # Page Configuration
 st.set_page_config(
@@ -225,7 +226,7 @@ with st.sidebar:
     
     page = st.radio(
         "Navigasi",
-        ["🏠 Beranda", "💰 Kalkulator Pajak", "🏭 Biaya Produksi", "📋 Audit Trail", "📞 Kontak"],
+        ["🏠 Beranda", "💰 Kalkulator Pajak", "🏭 Biaya Produksi", "🤖 AI Tax Advisor", "📋 Audit Trail", "📞 Kontak"],
         label_visibility="collapsed"
     )
     
@@ -2105,6 +2106,160 @@ elif page == "🏭 Biaya Produksi":
         else:
             st.info("👈 Masukkan data biaya dan klik tombol Hitung untuk melihat analisis")
     
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page == "🤖 AI Tax Advisor":
+    st.markdown("""
+    <div class="main-header">
+        <h1>🤖 AI Tax Advisor</h1>
+        <p>Konsultan Pajak Virtual Anda 24/7</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Initialize chat history
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    
+    # Suggested Questions
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("💡 Pertanyaan Populer")
+    st.caption("Klik untuk bertanya langsung")
+    
+    suggested = get_suggested_questions()
+    
+    for category_data in suggested:
+        st.markdown(f"**{category_data['category']}**")
+        cols = st.columns(len(category_data['questions']))
+        for idx, question in enumerate(category_data['questions']):
+            with cols[idx]:
+                if st.button(question, key=f"suggested_{category_data['category']}_{idx}", use_container_width=True):
+                    # Add to chat history
+                    user_context = {}
+                    if 'pph_badan_result' in st.session_state:
+                        user_context['omzet'] = st.session_state.pph_badan_result.get('omzet', 0)
+                    if 'production_result' in st.session_state:
+                        user_context['biaya_produksi'] = st.session_state.production_result.get('total_biaya', 0)
+                    
+                    response = get_ai_response(question, user_context)
+                    st.session_state.chat_history.append({
+                        'user': question,
+                        'ai': response,
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    })
+                    st.rerun()
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Chat Interface
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("💬 Chat dengan AI Tax Advisor")
+    
+    # Display chat history
+    if st.session_state.chat_history:
+        for chat in st.session_state.chat_history:
+            # User message
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        padding: 15px; border-radius: 10px; margin: 10px 0;">
+                <strong>👤 Anda ({chat['timestamp']}):</strong><br>
+                {chat['user']}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # AI response
+            st.markdown(f"""
+            <div style="background: rgba(255, 255, 255, 0.05); 
+                        padding: 15px; border-radius: 10px; margin: 10px 0; 
+                        border-left: 4px solid #667eea;">
+                <strong>🤖 AI Tax Advisor:</strong>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown(chat['ai'])
+            st.markdown("---")
+    else:
+        st.info("💡 Mulai percakapan dengan mengetik pertanyaan atau klik salah satu pertanyaan yang disarankan di atas!")
+    
+    # Input area
+    col1, col2 = st.columns([5, 1])
+    with col1:
+        user_question = st.text_input(
+            "Tanyakan sesuatu...",
+            placeholder="Contoh: Bagaimana cara menurunkan PPh Badan 2025?",
+            label_visibility="collapsed",
+            key="user_input"
+        )
+    
+    with col2:
+        send_button = st.button("📤 Send", use_container_width=True)
+    
+    if send_button and user_question:
+        # Get user context
+        user_context = {}
+        if 'pph_badan_result' in st.session_state:
+            user_context['omzet'] = st.session_state.pph_badan_result.get('omzet', 0)
+        if 'production_result' in st.session_state:
+            user_context['biaya_produksi'] = st.session_state.production_result.get('total_biaya', 0)
+        
+        # Get AI response
+        response = get_ai_response(user_question, user_context)
+        
+        # Add to chat history
+        st.session_state.chat_history.append({
+            'user': user_question,
+            'ai': response,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+        st.rerun()
+    
+    # Action buttons
+    if st.session_state.chat_history:
+        col_a, col_b, col_c = st.columns(3)
+        
+        with col_a:
+            if st.button("🗑️ Clear Chat", use_container_width=True):
+                st.session_state.chat_history = []
+                st.rerun()
+        
+        with col_b:
+            # Export chat history
+            chat_text = "AI TAX ADVISOR - CHAT HISTORY\n"
+            chat_text += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            chat_text += "="*50 + "\n\n"
+            
+            for chat in st.session_state.chat_history:
+                chat_text += f"[{chat['timestamp']}]\n"
+                chat_text += f"USER: {chat['user']}\n\n"
+                chat_text += f"AI: {chat['ai']}\n\n"
+                chat_text += "-"*50 + "\n\n"
+            
+            st.download_button(
+                "📥 Export Chat",
+                chat_text.encode('utf-8'),
+                f"ai_tax_advisor_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                "text/plain",
+                use_container_width=True
+            )
+        
+        with col_c:
+            st.metric("Total Pertanyaan", len(st.session_state.chat_history))
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Info & Disclaimer
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.markdown("### ℹ️ Tentang AI Tax Advisor")
+    st.markdown("""
+    AI Tax Advisor adalah asisten virtual yang dapat membantu Anda dengan:
+    - ✅ Pertanyaan umum perpajakan
+    - ✅ Strategi tax planning
+    - ✅ Analisis eligibilitas UMKM
+    - ✅ Optimasi biaya produksi
+    - ✅ Rekomendasi berdasarkan data Anda
+    
+    **⚠️ Disclaimer:** AI Tax Advisor memberikan informasi umum dan rekomendasi berdasarkan regulasi perpajakan Indonesia. 
+    Untuk kasus spesifik dan kompleks, konsultasikan dengan konsultan pajak profesional.
+    """)
     st.markdown("</div>", unsafe_allow_html=True)
 
 elif page == "📋 Audit Trail":
