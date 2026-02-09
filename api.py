@@ -7,9 +7,26 @@ from fastapi import FastAPI, HTTPException, Depends, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
+# Import models
+from api_models import *
+
+# Import calculation functions
+from tax_calculator import (
+    calculate_pph21_api, calculate_pph23_api, calculate_ppn_api,
+    calculate_pph_badan_api, calculate_pbb_api, calculate_pkb_api,
+    calculate_bphtb_api
+)
+
 # Import other services
 from ai_tax_advisor import get_ai_response
-from pdf_generator import generate_tax_report_pdf
+
+# Conditional import for PDF generator (reportlab might fail on Vercel)
+try:
+    from pdf_generator import generate_tax_report_pdf
+    PDF_GENERATOR_AVAILABLE = True
+except ImportError:
+    PDF_GENERATOR_AVAILABLE = False
+    print("Warning: PDF generator not available (reportlab missing/failed)")
 
 # Conditional import for dashboard data (heavy dependencies)
 try:
@@ -396,6 +413,9 @@ async def generate_report(request: ReportGenerateRequest):
     Returns base64 encoded PDF
     """
     try:
+        if not PDF_GENERATOR_AVAILABLE:
+            raise HTTPException(status_code=503, detail="PDF generation service not available in this environment")
+
         pdf_bytes = generate_tax_report_pdf(
             calc_type=request.calc_type,
             user_name=request.user_name,
