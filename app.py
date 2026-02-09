@@ -6,6 +6,11 @@ from datetime import datetime
 from audit_logger import save_audit_log, load_audit_logs, export_audit_logs, get_audit_summary
 from pdf_generator import generate_tax_report_pdf
 from ai_tax_advisor import get_ai_response, get_suggested_questions
+import altair as alt
+import numpy as np
+from cfo_dashboard_data import (generate_sample_tax_data, generate_pph21_trend_data,
+                                  generate_pph_badan_quarterly, generate_5year_projection,
+                                  generate_production_cost_data)
 
 # Page Configuration
 st.set_page_config(
@@ -226,7 +231,7 @@ with st.sidebar:
     
     page = st.radio(
         "Navigasi",
-        ["🏠 Beranda", "💰 Kalkulator Pajak", "🏭 Biaya Produksi", "🤖 AI Tax Advisor", "📋 Audit Trail", "📞 Kontak"],
+        ["🏠 Beranda", "📊 CFO Dashboard", "💰 Kalkulator Pajak", "🏭 Biaya Produksi", "🤖 AI Tax Advisor", "📋 Audit Trail", "📞 Kontak"],
         label_visibility="collapsed"
     )
     
@@ -321,6 +326,295 @@ if page == "🏠 Beranda":
         
         st.markdown("#### 📊 Pembukuan & Akuntansi")
         st.write("Jasa pembukuan dan laporan keuangan")
+
+elif page == "📊 CFO Dashboard":
+    st.markdown("""
+    <div class="main-header">
+        <h1>📊 CFO Dashboard</h1>
+        <p>Executive Tax & Production Analytics</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Generate sample data
+    tax_data = generate_sample_tax_data()
+    pph21_trend = generate_pph21_trend_data()
+    pph_badan_quarterly = generate_pph_badan_quarterly()
+    projection_data = generate_5year_projection()
+    cost_breakdown, cost_trend = generate_production_cost_data()
+    
+    # KPI Summary Cards
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("📈 Key Performance Indicators")
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    total_tax = tax_data['amount'].sum()
+    pph21_ytd = tax_data[tax_data['tax_type'] == 'PPh 21']['amount'].sum()
+    pph_badan_ytd = tax_data[tax_data['tax_type'] == 'PPh Badan']['amount'].sum()
+    prod_cost_total = cost_breakdown['amount'].sum()
+    tax_efficiency = 85.5  # Sample efficiency ratio
+    
+    with col1:
+        st.metric("Total Pajak YTD", f"Rp {total_tax/1e9:.2f}B", delta="12.5%")
+    
+    with col2:
+        st.metric("PPh 21 YTD", f"Rp {pph21_ytd/1e6:.0f}M", delta="8.2%")
+    
+    with col3:
+        st.metric("PPh Badan YTD", f"Rp {pph_badan_ytd/1e9:.2f}B", delta="15.3%")
+    
+    with col4:
+        st.metric("Biaya Produksi", f"Rp {prod_cost_total/1e9:.2f}B", delta="-3.1%")
+    
+    with col5:
+        st.metric("Tax Efficiency", f"{tax_efficiency}%", delta="2.3%")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Pajak Tahunan - Stacked Bar Chart
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("📊 Pajak Tahunan per Bulan")
+    
+    # Prepare data for Altair
+    tax_data['month_str'] = tax_data['month'].dt.strftime('%b %Y')
+    
+    chart_annual = alt.Chart(tax_data).mark_bar().encode(
+        x=alt.X('month_str:N', title='Bulan', sort=None),
+        y=alt.Y('amount:Q', title='Pajak (Rp)', axis=alt.Axis(format='~s')),
+        color=alt.Color('tax_type:N', 
+            title='Jenis Pajak',
+            scale=alt.Scale(
+                domain=['PPh 21', 'PPh Badan', 'PPN', 'Lainnya'],
+                range=['#667eea', '#764ba2', '#f093fb', '#feca57']
+            )
+        ),
+        tooltip=[
+            alt.Tooltip('month_str:N', title='Bulan'),
+            alt.Tooltip('tax_type:N', title='Jenis Pajak'),
+            alt.Tooltip('amount:Q', title='Jumlah', format=',.0f')
+        ]
+    ).properties(
+        width='container',
+        height=400
+    ).configure_axis(
+        labelAngle=45
+    )
+    
+    st.altair_chart(chart_annual, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Tren PPh 21 & PPh Badan
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.subheader("📈 Tren PPh 21")
+        
+        pph21_trend['month_str'] = pph21_trend['month'].dt.strftime('%b %Y')
+        
+        # Create base chart
+        base = alt.Chart(pph21_trend).encode(
+            x=alt.X('month_str:N', title='Bulan', sort=None)
+        )
+        
+        # Actual line
+        line = base.mark_line(color='#667eea', strokeWidth=3).encode(
+            y=alt.Y('pph21:Q', title='PPh 21 (Rp)', axis=alt.Axis(format='~s')),
+            tooltip=[
+                alt.Tooltip('month_str:N', title='Bulan'),
+                alt.Tooltip('pph21:Q', title='PPh 21', format=',.0f')
+            ]
+        )
+        
+        # Moving average
+        ma_line = base.mark_line(color='#f093fb', strokeDash=[5,5], strokeWidth=2).encode(
+            y=alt.Y('moving_avg:Q'),
+            tooltip=[
+                alt.Tooltip('month_str:N', title='Bulan'),
+                alt.Tooltip('moving_avg:Q', title='MA (3 bulan)', format=',.0f')
+            ]
+        )
+        
+        chart_pph21 = (line + ma_line).properties(
+            width='container',
+            height=300
+        ).configure_axis(
+            labelAngle=45
+        )
+        
+        st.altair_chart(chart_pph21, use_container_width=True)
+        st.caption("Garis putus-putus: Moving Average 3 bulan")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col_right:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.subheader("📊 Tren PPh Badan (Quarterly)")
+        
+        chart_pph_badan = alt.Chart(pph_badan_quarterly).mark_line(point=True).encode(
+            x=alt.X('quarter:N', title='Quarter'),
+            y=alt.Y('pph_badan:Q', title='PPh Badan (Rp)', axis=alt.Axis(format='~s')),
+            color=alt.Color('scenario:N', 
+                title='Skenario',
+                scale=alt.Scale(
+                    domain=['UMKM (0.5%)', 'Non-UMKM (22%)'],
+                    range=['#51cf66', '#667eea']
+                )
+            ),
+            strokeDash=alt.StrokeDash('scenario:N',
+                scale=alt.Scale(
+                    domain=['UMKM (0.5%)', 'Non-UMKM (22%)'],
+                    range=[[1,0], [5,5]]
+                )
+            ),
+            tooltip=[
+                alt.Tooltip('quarter:N', title='Quarter'),
+                alt.Tooltip('scenario:N', title='Skenario'),
+                alt.Tooltip('pph_badan:Q', title='PPh Badan', format=',.0f')
+            ]
+        ).properties(
+            width='container',
+            height=300
+        )
+        
+        st.altair_chart(chart_pph_badan, use_container_width=True)
+        st.caption("Perbandingan UMKM vs Non-UMKM")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Proyeksi 5 Tahun
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("🔮 Proyeksi Pajak 5 Tahun")
+    
+    chart_projection = alt.Chart(projection_data).mark_line(point=True, strokeWidth=3).encode(
+        x=alt.X('year:N', title='Tahun'),
+        y=alt.Y('projected_tax:Q', title='Proyeksi Pajak (Rp)', axis=alt.Axis(format='~s')),
+        color=alt.Color('scenario:N',
+            title='Skenario',
+            scale=alt.Scale(
+                domain=['Conservative', 'Moderate', 'Aggressive'],
+                range=['#ff6b6b', '#667eea', '#51cf66']
+            )
+        ),
+        strokeDash=alt.StrokeDash('type:N',
+            title='Tipe',
+            scale=alt.Scale(
+                domain=['Historical', 'Forecast'],
+                range=[[1,0], [5,5]]
+            )
+        ),
+        tooltip=[
+            alt.Tooltip('year:N', title='Tahun'),
+            alt.Tooltip('scenario:N', title='Skenario'),
+            alt.Tooltip('projected_tax:Q', title='Proyeksi', format=',.0f'),
+            alt.Tooltip('type:N', title='Tipe')
+        ]
+    ).properties(
+        width='container',
+        height=400
+    )
+    
+    st.altair_chart(chart_projection, use_container_width=True)
+    
+    # Scenario explanation
+    col_s1, col_s2, col_s3 = st.columns(3)
+    with col_s1:
+        st.markdown("**🔴 Conservative (5% growth)**")
+        st.caption("Pertumbuhan minimal, fokus efisiensi")
+    with col_s2:
+        st.markdown("**🔵 Moderate (10% growth)**")
+        st.caption("Pertumbuhan stabil, balanced approach")
+    with col_s3:
+        st.markdown("**🟢 Aggressive (15% growth)**")
+        st.caption("Ekspansi cepat, investasi tinggi")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Biaya Produksi Analysis
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("🏭 Analisis Biaya Produksi")
+    
+    col_cost1, col_cost2 = st.columns([1, 2])
+    
+    with col_cost1:
+        st.markdown("**Breakdown Biaya**")
+        
+        # Pie chart using Altair
+        chart_pie = alt.Chart(cost_breakdown).mark_arc(innerRadius=50).encode(
+            theta=alt.Theta('amount:Q'),
+            color=alt.Color('category:N',
+                scale=alt.Scale(
+                    domain=['Bahan Baku', 'Tenaga Kerja', 'Overhead', 'Lainnya'],
+                    range=['#667eea', '#764ba2', '#f093fb', '#feca57']
+                ),
+                legend=alt.Legend(title='Kategori')
+            ),
+            tooltip=[
+                alt.Tooltip('category:N', title='Kategori'),
+                alt.Tooltip('amount:Q', title='Jumlah', format=',.0f'),
+                alt.Tooltip('percentage:Q', title='Persentase', format='.1f')
+            ]
+        ).properties(
+            width=300,
+            height=300
+        )
+        
+        st.altair_chart(chart_pie, use_container_width=True)
+        
+        # Breakdown table
+        st.dataframe(
+            cost_breakdown[['category', 'percentage']].rename(columns={'category': 'Kategori', 'percentage': '%'}),
+            use_container_width=True,
+            hide_index=True
+        )
+    
+    with col_cost2:
+        st.markdown("**Tren Biaya per Kategori**")
+        
+        cost_trend['month_str'] = cost_trend['month'].dt.strftime('%b %Y')
+        
+        chart_cost_trend = alt.Chart(cost_trend).mark_area().encode(
+            x=alt.X('month_str:N', title='Bulan', sort=None),
+            y=alt.Y('cost:Q', title='Biaya (Rp)', axis=alt.Axis(format='~s')),
+            color=alt.Color('category:N',
+                title='Kategori',
+                scale=alt.Scale(
+                    domain=['Bahan Baku', 'Tenaga Kerja', 'Overhead', 'Lainnya'],
+                    range=['#667eea', '#764ba2', '#f093fb', '#feca57']
+                )
+            ),
+            tooltip=[
+                alt.Tooltip('month_str:N', title='Bulan'),
+                alt.Tooltip('category:N', title='Kategori'),
+                alt.Tooltip('cost:Q', title='Biaya', format=',.0f')
+            ]
+        ).properties(
+            width='container',
+            height=350
+        ).configure_axis(
+            labelAngle=45
+        )
+        
+        st.altair_chart(chart_cost_trend, use_container_width=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Export Dashboard
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("📥 Export Dashboard")
+    
+    col_exp1, col_exp2, col_exp3 = st.columns(3)
+    
+    with col_exp1:
+        if st.button("📊 Export to Excel", use_container_width=True):
+            st.info("Feature coming soon!")
+    
+    with col_exp2:
+        if st.button("📄 Export to PDF", use_container_width=True):
+            st.info("Feature coming soon!")
+    
+    with col_exp3:
+        st.metric("Last Updated", datetime.now().strftime('%d %b %Y'))
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 elif page == "💰 Kalkulator Pajak":
     st.markdown("""
