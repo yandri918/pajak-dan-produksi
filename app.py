@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
 from audit_logger import save_audit_log, load_audit_logs, export_audit_logs, get_audit_summary
+from pdf_generator import generate_tax_report_pdf
 
 # Page Configuration
 st.set_page_config(
@@ -472,14 +473,32 @@ elif page == "💰 Kalkulator Pajak":
                 
                 st.dataframe(detail_df, use_container_width=True, hide_index=True)
                 
-                # Download Button
-                st.download_button(
-                    "📥 Download Hasil (CSV)",
-                    detail_df.to_csv(index=False).encode('utf-8'),
-                    "hasil_pph21.csv",
-                    "text/csv",
-                    use_container_width=True
-                )
+                # Download Buttons
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    st.download_button(
+                        "📥 Download CSV",
+                        detail_df.to_csv(index=False).encode('utf-8'),
+                        "hasil_pph21.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                
+                with col_dl2:
+                    pdf_bytes = generate_tax_report_pdf(
+                        calc_type="PPh 21",
+                        user_name=st.session_state.get('user_name', 'Anonymous'),
+                        company_name=st.session_state.get('company_name', 'N/A'),
+                        input_data={'gaji_bruto': gaji_bruto, 'status': status, 'bonus': bonus, 'potongan': potongan},
+                        output_data=result
+                    )
+                    st.download_button(
+                        "📄 Download PDF Report",
+                        pdf_bytes,
+                        f"Tax_Report_PPh21_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        "application/pdf",
+                        use_container_width=True
+                    )
             else:
                 st.info("👈 Masukkan data dan klik tombol Hitung untuk melihat hasil")
         
@@ -577,6 +596,33 @@ elif page == "💰 Kalkulator Pajak":
                 })
                 
                 st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                
+                # Download Buttons
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    st.download_button(
+                        "📥 Download CSV",
+                        detail_df.to_csv(index=False).encode('utf-8'),
+                        "hasil_pph23.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                
+                with col_dl2:
+                    pdf_bytes = generate_tax_report_pdf(
+                        calc_type="PPh 23",
+                        user_name=st.session_state.get('user_name', 'Anonymous'),
+                        company_name=st.session_state.get('company_name', 'N/A'),
+                        input_data={'jenis': jenis_penghasilan, 'bruto': jumlah_bruto, 'npwp': punya_npwp},
+                        output_data=result
+                    )
+                    st.download_button(
+                        "📄 Download PDF Report",
+                        pdf_bytes,
+                        f"Tax_Report_PPh23_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        "application/pdf",
+                        use_container_width=True
+                    )
             else:
                 st.info("👈 Masukkan data dan klik tombol Hitung untuk melihat hasil")
         
@@ -665,6 +711,43 @@ elif page == "💰 Kalkulator Pajak":
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Download Buttons
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    detail_df = pd.DataFrame({
+                        'Keterangan': ['Jenis', 'Tarif', 'DPP', 'PPN', 'Total'],
+                        'Nilai': [
+                            result['jenis'],
+                            f"{result['tarif']:.0f}%",
+                            f"Rp {result['dpp']:,.0f}",
+                            f"Rp {result['ppn']:,.0f}",
+                            f"Rp {result['total']:,.0f}"
+                        ]
+                    })
+                    st.download_button(
+                        "📥 Download CSV",
+                        detail_df.to_csv(index=False).encode('utf-8'),
+                        "hasil_ppn.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                
+                with col_dl2:
+                    pdf_bytes = generate_tax_report_pdf(
+                        calc_type="PPN",
+                        user_name=st.session_state.get('user_name', 'Anonymous'),
+                        company_name=st.session_state.get('company_name', 'N/A'),
+                        input_data={'jenis': jenis_hitung, 'jumlah': jumlah, 'tarif': tarif * 100},
+                        output_data=result
+                    )
+                    st.download_button(
+                        "📄 Download PDF Report",
+                        pdf_bytes,
+                        f"Tax_Report_PPN_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        "application/pdf",
+                        use_container_width=True
+                    )
             else:
                 st.info("👈 Masukkan data dan klik tombol Hitung untuk melihat hasil")
         
@@ -865,14 +948,44 @@ elif page == "💰 Kalkulator Pajak":
                     
                     st.dataframe(detail_df, use_container_width=True, hide_index=True)
                     
-                    # Download
-                    st.download_button(
-                        "📥 Download Hasil (CSV)",
-                        detail_df.to_csv(index=False).encode('utf-8'),
-                        "hasil_pph_badan.csv",
-                        "text/csv",
-                        use_container_width=True
-                    )
+                    # Download Buttons
+                    col_dl1, col_dl2 = st.columns(2)
+                    with col_dl1:
+                        st.download_button(
+                            "📥 Download CSV",
+                            detail_df.to_csv(index=False).encode('utf-8'),
+                            "hasil_pph_badan.csv",
+                            "text/csv",
+                            use_container_width=True
+                        )
+                    
+                    with col_dl2:
+                        # Assuming generate_tax_report_pdf and datetime are imported
+                        from datetime import datetime
+                        pdf_bytes = generate_tax_report_pdf(
+                            calc_type="PPh Badan",
+                            user_name=st.session_state.get('user_name', 'Anonymous'),
+                            company_name=st.session_state.get('company_name', 'N/A'),
+                            input_data={
+                                'omzet': result['omzet'],
+                                'biaya': result['biaya'],
+                                'penghasilan_lain': result['penghasilan_lain'],
+                                'biaya_tidak_deductible': biaya_tidak_deductible, # Need to pass original inputs
+                                'penghasilan_final': penghasilan_final,
+                                'koreksi_lainnya': koreksi_lainnya,
+                                'is_umkm': result['is_umkm'],
+                                'pph_pasal_22': pph_pasal_22,
+                                'pph_pasal_23': pph_pasal_23
+                            },
+                            output_data=result
+                        )
+                        st.download_button(
+                            "📄 Download PDF Report",
+                            pdf_bytes,
+                            f"Tax_Report_PPhBadan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            "application/pdf",
+                            use_container_width=True
+                        )
                 else:
                     st.info("👈 Masukkan data dan klik tombol Hitung untuk melihat hasil")
         
@@ -1415,14 +1528,32 @@ elif page == "💰 Kalkulator Pajak":
                 
                 st.dataframe(detail_df, use_container_width=True, hide_index=True)
                 
-                # Download Button
-                st.download_button(
-                    "📥 Download Hasil (CSV)",
-                    detail_df.to_csv(index=False).encode('utf-8'),
-                    "hasil_pbb.csv",
-                    "text/csv",
-                    use_container_width=True
-                )
+                # Download Buttons
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    st.download_button(
+                        "📥 Download CSV",
+                        detail_df.to_csv(index=False).encode('utf-8'),
+                        "hasil_pbb.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                
+                with col_dl2:
+                    pdf_bytes = generate_tax_report_pdf(
+                        calc_type="PBB",
+                        user_name=st.session_state.get('user_name', 'Anonymous'),
+                        company_name=st.session_state.get('company_name', 'N/A'),
+                        input_data={'luas_tanah': luas_tanah, 'njop_tanah_per_m2': njop_tanah_per_m2, 'luas_bangunan': luas_bangunan, 'njop_bangunan_per_m2': njop_bangunan_per_m2},
+                        output_data=result
+                    )
+                    st.download_button(
+                        "📄 Download PDF Report",
+                        pdf_bytes,
+                        f"Tax_Report_PBB_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        "application/pdf",
+                        use_container_width=True
+                    )
             else:
                 st.info("👈 Masukkan data properti dan klik tombol Hitung untuk melihat hasil")
         
@@ -1594,14 +1725,32 @@ elif page == "💰 Kalkulator Pajak":
                 if result['umur'] > 10:
                     st.warning(f"⚠️ Kendaraan berusia {result['umur']} tahun. Pertimbangkan biaya tambahan untuk uji emisi.")
                 
-                # Download Button
-                st.download_button(
-                    "📥 Download Hasil (CSV)",
-                    detail_df.to_csv(index=False).encode('utf-8'),
-                    "hasil_pkb.csv",
-                    "text/csv",
-                    use_container_width=True
-                )
+                # Download Buttons
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    st.download_button(
+                        "📥 Download CSV",
+                        detail_df.to_csv(index=False).encode('utf-8'),
+                        "hasil_pkb.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                
+                with col_dl2:
+                    pdf_bytes = generate_tax_report_pdf(
+                        calc_type="PKB",
+                        user_name=st.session_state.get('user_name', 'Anonymous'),
+                        company_name=st.session_state.get('company_name', 'N/A'),
+                        input_data={'jenis': jenis_kendaraan, 'nilai_jual': nilai_jual, 'provinsi': provinsi, 'tahun': tahun_kendaraan},
+                        output_data=result
+                    )
+                    st.download_button(
+                        "📄 Download PDF Report",
+                        pdf_bytes,
+                        f"Tax_Report_PKB_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        "application/pdf",
+                        use_container_width=True
+                    )
             else:
                 st.info("👈 Masukkan data kendaraan dan klik tombol Hitung untuk melihat hasil")
         
@@ -1803,14 +1952,32 @@ elif page == "💰 Kalkulator Pajak":
                 
                 st.info("💡 **Catatan:** Biaya notaris dan biaya lainnya adalah estimasi. Konsultasikan dengan notaris untuk biaya aktual.")
                 
-                # Download Button
-                st.download_button(
-                    "📥 Download Hasil (CSV)",
-                    detail_df.to_csv(index=False).encode('utf-8'),
-                    "hasil_bphtb.csv",
-                    "text/csv",
-                    use_container_width=True
-                )
+                # Download Buttons
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    st.download_button(
+                        "📥 Download CSV",
+                        detail_df.to_csv(index=False).encode('utf-8'),
+                        "hasil_bphtb.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                
+                with col_dl2:
+                    pdf_bytes = generate_tax_report_pdf(
+                        calc_type="BPHTB",
+                        user_name=st.session_state.get('user_name', 'Anonymous'),
+                        company_name=st.session_state.get('company_name', 'N/A'),
+                        input_data={'jenis': jenis_perolehan, 'harga_transaksi': harga_transaksi, 'njop_total': njop_total_bphtb},
+                        output_data=result
+                    )
+                    st.download_button(
+                        "📄 Download PDF Report",
+                        pdf_bytes,
+                        f"Tax_Report_BPHTB_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        "application/pdf",
+                        use_container_width=True
+                    )
             else:
                 st.info("👈 Masukkan data transaksi dan klik tombol Hitung untuk melihat hasil")
         
