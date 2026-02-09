@@ -8,9 +8,13 @@ from pdf_generator import generate_tax_report_pdf
 from ai_tax_advisor import get_ai_response, get_suggested_questions
 import altair as alt
 import numpy as np
-from cfo_dashboard_data import (generate_sample_tax_data, generate_pph21_trend_data,
-                                  generate_pph_badan_quarterly, generate_5year_projection,
-                                  generate_production_cost_data)
+from cfo_dashboard_data import (
+    generate_sample_tax_data, generate_pph21_trend_data,
+    generate_pph_badan_quarterly, generate_5year_projection,
+    generate_production_cost_data,
+    load_from_audit_trail, load_from_database, load_from_uploaded_file,
+    process_tax_data_for_dashboard, calculate_pph21_trend, calculate_pph_badan_quarterly
+)
 
 # Page Configuration
 st.set_page_config(
@@ -335,12 +339,95 @@ elif page == "📊 CFO Dashboard":
     </div>
     """, unsafe_allow_html=True)
     
-    # Generate sample data
-    tax_data = generate_sample_tax_data()
-    pph21_trend = generate_pph21_trend_data()
-    pph_badan_quarterly = generate_pph_badan_quarterly()
-    projection_data = generate_5year_projection()
-    cost_breakdown, cost_trend = generate_production_cost_data()
+    # Data Source Selector
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("📂 Sumber Data")
+    
+    data_source = st.radio(
+        "Pilih sumber data untuk dashboard:",
+        ["📊 Sample Data (Demo)", "📋 Audit Trail", "💾 Database", "📤 Upload File"],
+        horizontal=True
+    )
+    
+    # Initialize data variables
+    raw_data = None
+    data_source_info = ""
+    
+    # Load data based on selection
+    if data_source == "📋 Audit Trail":
+        with st.spinner("Loading data from audit trail..."):
+            raw_data = load_from_audit_trail()
+            if raw_data is not None and not raw_data.empty:
+                data_source_info = f"✅ Loaded {len(raw_data)} records from audit trail"
+                st.success(data_source_info)
+            else:
+                st.warning("⚠️ No audit trail data found. Using sample data instead.")
+                raw_data = None
+    
+    elif data_source == "💾 Database":
+        db_path = st.text_input("Database Path:", value="tax_data.db")
+        if st.button("Load from Database"):
+            with st.spinner("Loading data from database..."):
+                raw_data = load_from_database(db_path)
+                if raw_data is not None and not raw_data.empty:
+                    data_source_info = f"✅ Loaded {len(raw_data)} records from database"
+                    st.success(data_source_info)
+                else:
+                    st.error("❌ Database not found or empty. Using sample data instead.")
+                    raw_data = None
+    
+    elif data_source == "📤 Upload File":
+        st.info("📝 **Format File:** Excel/CSV dengan kolom: `month`, `tax_type`, `amount`")
+        uploaded_file = st.file_uploader(
+            "Upload file Excel atau CSV",
+            type=['xlsx', 'xls', 'csv'],
+            help="File harus memiliki kolom: month (tanggal), tax_type (jenis pajak), amount (jumlah)"
+        )
+        
+        if uploaded_file is not None:
+            with st.spinner("Processing uploaded file..."):
+                raw_data = load_from_uploaded_file(uploaded_file)
+                if raw_data is not None and not raw_data.empty:
+                    data_source_info = f"✅ Loaded {len(raw_data)} records from {uploaded_file.name}"
+                    st.success(data_source_info)
+                    
+                    # Show preview
+                    with st.expander("Preview Data"):
+                        st.dataframe(raw_data.head(10), use_container_width=True)
+                else:
+                    st.error("❌ Invalid file format. Please check column names. Using sample data instead.")
+                    raw_data = None
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Process data or use sample data
+    if raw_data is not None and not raw_data.empty:
+        # Use real data
+        tax_data = process_tax_data_for_dashboard(raw_data)
+        pph21_trend = calculate_pph21_trend(raw_data)
+        pph_badan_quarterly = calculate_pph_badan_quarterly(raw_data)
+        
+        # For projections and production costs, still use generated data
+        # (since these require historical patterns not available in raw data)
+        projection_data = generate_5year_projection()
+        cost_breakdown, cost_trend = generate_production_cost_data()
+        
+        # Fallback to sample if processing failed
+        if tax_data is None or tax_data.empty:
+            st.warning("⚠️ Data processing failed. Using sample data.")
+            tax_data = generate_sample_tax_data()
+            pph21_trend = generate_pph21_trend_data()
+            pph_badan_quarterly = generate_pph_badan_quarterly()
+    else:
+        # Use sample data (default)
+        tax_data = generate_sample_tax_data()
+        pph21_trend = generate_pph21_trend_data()
+        pph_badan_quarterly = generate_pph_badan_quarterly()
+        projection_data = generate_5year_projection()
+        cost_breakdown, cost_trend = generate_production_cost_data()
+        
+        if data_source == "📊 Sample Data (Demo)":
+            st.info("ℹ️ Menampilkan data demo untuk ilustrasi dashboard")
     
     # KPI Summary Cards
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
