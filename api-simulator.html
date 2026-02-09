@@ -270,8 +270,7 @@
             <div class="config-grid">
                 <div class="form-group">
                     <label><i class="fas fa-server"></i> API Base URL</label>
-                    <input type="text" id="apiBaseUrl" class="form-control" value="http://localhost:8000"
-                        placeholder="http://localhost:8000">
+                    <input type="text" id="apiBaseUrl" class="form-control" placeholder="Processing...">
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-key"></i> API Key</label>
@@ -282,6 +281,9 @@
                     <button class="btn btn-primary" onclick="testConnection()">
                         <i class="fas fa-plug"></i> Test Connection
                     </button>
+                    <!-- <button class="btn btn-secondary" style="margin-top: 10px;" onclick="useLocalhost()">
+                        <i class="fas fa-laptop"></i> Use Localhost
+                    </button> -->
                 </div>
             </div>
         </div>
@@ -579,6 +581,21 @@
     </div>
 
     <script>
+        // Auto-detect API Base URL
+        document.addEventListener('DOMContentLoaded', function () {
+            const currentUrl = window.location.origin;
+            const apiUrlInput = document.getElementById('apiBaseUrl');
+
+            // If running on localhost/127.0.0.1, default to local port 8000
+            // Otherwise use the deployed URL
+            if (currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1')) {
+                // If opening html file directly (file://) or running on port other than 8000
+                apiUrlInput.value = 'http://localhost:8000';
+            } else {
+                apiUrlInput.value = currentUrl;
+            }
+        });
+
         // Format currency
         function formatCurrency(value) {
             return new Intl.NumberFormat('id-ID', {
