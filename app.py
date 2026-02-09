@@ -206,6 +206,9 @@ with st.sidebar:
     st.markdown("### 📊 Info Cepat")
     st.info("**Tarif PPN:** 11%")
     st.info("**PPh Badan:** 22%")
+    st.info("**PBB:** 0.5%")
+    st.info("**PKB:** 1.5%-2%")
+    st.info("**BPHTB:** 5%")
     st.info("**Update:** UU HPP 2021")
     
     st.markdown("---")
@@ -231,7 +234,7 @@ if page == "🏠 Beranda":
         <div class="glass-card" style="text-align: center;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
             <h3>Kalkulator Pajak Lengkap</h3>
-            <p>PPh 21, PPh 23, PPN, PPh Badan sesuai regulasi terbaru</p>
+            <p>PPh 21, PPh 23, PPN, PPh Badan, PBB, PKB, BPHTB sesuai regulasi terbaru</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -300,7 +303,7 @@ elif page == "💰 Kalkulator Pajak":
     """, unsafe_allow_html=True)
     
     # Tax Type Tabs
-    tax_tab = st.tabs(["PPh 21", "PPh 23", "PPN", "PPh Badan"])
+    tax_tab = st.tabs(["PPh 21", "PPh 23", "PPN", "PPh Badan", "PBB", "PKB", "BPHTB"])
     
     # PPh 21 Calculator
     with tax_tab[0]:
@@ -1184,6 +1187,543 @@ elif page == "💰 Kalkulator Pajak":
             📞 **Butuh Konsultasi?**  
             Hubungi tim TaxPro Indonesia untuk konsultasi tax planning yang disesuaikan dengan kondisi perusahaan Anda.
             """)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # PBB Calculator (Pajak Bumi dan Bangunan)
+    with tax_tab[4]:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.subheader("📊 Kalkulator PBB - Pajak Bumi dan Bangunan")
+        st.caption("Hitung pajak properti tahunan berdasarkan NJOP")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("#### Input Data Properti")
+            
+            st.markdown("##### 🏞️ Data Tanah")
+            luas_tanah = st.number_input(
+                "Luas Tanah (m²)",
+                min_value=0,
+                value=100,
+                step=1,
+                format="%d"
+            )
+            
+            njop_tanah_per_m2 = st.number_input(
+                "NJOP Tanah per m² (Rp)",
+                min_value=0,
+                value=1000000,
+                step=10000,
+                format="%d",
+                help="Nilai Jual Objek Pajak tanah per meter persegi"
+            )
+            
+            st.markdown("##### 🏠 Data Bangunan")
+            luas_bangunan = st.number_input(
+                "Luas Bangunan (m²)",
+                min_value=0,
+                value=80,
+                step=1,
+                format="%d"
+            )
+            
+            njop_bangunan_per_m2 = st.number_input(
+                "NJOP Bangunan per m² (Rp)",
+                min_value=0,
+                value=1500000,
+                step=10000,
+                format="%d",
+                help="Nilai Jual Objek Pajak bangunan per meter persegi"
+            )
+            
+            st.markdown("##### ⚙️ Pengaturan")
+            njoptkp = st.number_input(
+                "NJOPTKP - Nilai Tidak Kena Pajak (Rp)",
+                min_value=0,
+                value=10000000,
+                step=1000000,
+                format="%d",
+                help="Bervariasi per daerah, umumnya Rp 10-15 juta"
+            )
+            
+            tarif_pbb = st.selectbox(
+                "Tarif PBB",
+                ["0.5% (Standar)", "0.3% (NJOP < 1 Miliar)", "0.2% (Khusus)"]
+            )
+            
+            if st.button("🧮 Hitung PBB", use_container_width=True):
+                # Calculate NJOP
+                njop_tanah = luas_tanah * njop_tanah_per_m2
+                njop_bangunan = luas_bangunan * njop_bangunan_per_m2
+                njop_total = njop_tanah + njop_bangunan
+                
+                # Calculate taxable NJOP
+                njop_kena_pajak = max(0, njop_total - njoptkp)
+                
+                # Determine tax rate
+                if "0.3%" in tarif_pbb:
+                    rate = 0.003
+                elif "0.2%" in tarif_pbb:
+                    rate = 0.002
+                else:
+                    rate = 0.005
+                
+                # Calculate PBB
+                pbb_terutang = njop_kena_pajak * rate
+                
+                st.session_state.pbb_result = {
+                    'luas_tanah': luas_tanah,
+                    'njop_tanah_per_m2': njop_tanah_per_m2,
+                    'njop_tanah': njop_tanah,
+                    'luas_bangunan': luas_bangunan,
+                    'njop_bangunan_per_m2': njop_bangunan_per_m2,
+                    'njop_bangunan': njop_bangunan,
+                    'njop_total': njop_total,
+                    'njoptkp': njoptkp,
+                    'njop_kena_pajak': njop_kena_pajak,
+                    'tarif': rate * 100,
+                    'pbb': pbb_terutang
+                }
+        
+        with col2:
+            st.markdown("#### Hasil Perhitungan")
+            
+            if 'pbb_result' in st.session_state:
+                result = st.session_state.pbb_result
+                
+                # Key Metrics
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("NJOP Total", f"Rp {result['njop_total']:,.0f}")
+                    st.metric("NJOP Kena Pajak", f"Rp {result['njop_kena_pajak']:,.0f}")
+                
+                with col_b:
+                    st.metric("Tarif PBB", f"{result['tarif']:.2f}%")
+                    st.metric("PBB Terutang/Tahun", f"Rp {result['pbb']:,.0f}")
+                
+                st.markdown("---")
+                
+                # Visualization
+                st.markdown("##### Komposisi NJOP")
+                fig = go.Figure(data=[go.Pie(
+                    labels=['NJOP Tanah', 'NJOP Bangunan'],
+                    values=[result['njop_tanah'], result['njop_bangunan']],
+                    hole=.4,
+                    marker_colors=['#667eea', '#764ba2']
+                )])
+                
+                fig.update_layout(
+                    height=250,
+                    showlegend=True,
+                    margin=dict(t=0, b=0, l=0, r=0)
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Detailed Breakdown
+                st.markdown("##### Rincian Perhitungan")
+                detail_df = pd.DataFrame({
+                    'Keterangan': [
+                        f'Tanah ({result["luas_tanah"]:,.0f} m²)',
+                        f'Bangunan ({result["luas_bangunan"]:,.0f} m²)',
+                        'NJOP Total',
+                        'NJOPTKP',
+                        'NJOP Kena Pajak',
+                        'PBB Terutang'
+                    ],
+                    'Nilai (Rp)': [
+                        f"{result['njop_tanah']:,.0f}",
+                        f"{result['njop_bangunan']:,.0f}",
+                        f"{result['njop_total']:,.0f}",
+                        f"({result['njoptkp']:,.0f})",
+                        f"{result['njop_kena_pajak']:,.0f}",
+                        f"{result['pbb']:,.0f}"
+                    ]
+                })
+                
+                st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                
+                # Download Button
+                st.download_button(
+                    "📥 Download Hasil (CSV)",
+                    detail_df.to_csv(index=False).encode('utf-8'),
+                    "hasil_pbb.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.info("👈 Masukkan data properti dan klik tombol Hitung untuk melihat hasil")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # PKB Calculator (Pajak Kendaraan Bermotor)
+    with tax_tab[5]:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.subheader("📊 Kalkulator PKB - Pajak Kendaraan Bermotor")
+        st.caption("Hitung pajak kendaraan tahunan")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("#### Input Data Kendaraan")
+            
+            jenis_kendaraan = st.selectbox(
+                "Jenis Kendaraan",
+                ["Motor", "Mobil Pribadi", "Mobil Komersial", "Truk", "Bus"]
+            )
+            
+            nilai_jual = st.number_input(
+                "Nilai Jual Kendaraan (Rp)",
+                min_value=0,
+                value=20000000,
+                step=1000000,
+                format="%d",
+                help="Sesuai dengan NJKB (Nilai Jual Kendaraan Bermotor)"
+            )
+            
+            provinsi = st.selectbox(
+                "Provinsi",
+                ["DKI Jakarta (2%)", "Jawa Barat (1.75%)", "Jawa Tengah (1.5%)", 
+                 "Jawa Timur (1.5%)", "Bali (1.5%)", "Lainnya (1.5%)"]
+            )
+            
+            tahun_kendaraan = st.number_input(
+                "Tahun Kendaraan",
+                min_value=1980,
+                max_value=datetime.now().year,
+                value=2020,
+                step=1
+            )
+            
+            bobot_koefisien = st.slider(
+                "Bobot/Koefisien",
+                min_value=0.5,
+                max_value=2.0,
+                value=1.0,
+                step=0.1,
+                help="Untuk kendaraan komersial atau berdasarkan fungsi"
+            )
+            
+            if st.button("🧮 Hitung PKB", use_container_width=True):
+                # Determine provincial rate
+                if "2%" in provinsi:
+                    tarif_provinsi = 0.02
+                elif "1.75%" in provinsi:
+                    tarif_provinsi = 0.0175
+                else:
+                    tarif_provinsi = 0.015
+                
+                # Calculate PKB
+                pkb = nilai_jual * tarif_provinsi * bobot_koefisien
+                
+                # SWDKLLJ (fixed amount based on vehicle type)
+                if jenis_kendaraan == "Motor":
+                    swdkllj = 35000
+                elif jenis_kendaraan == "Mobil Pribadi":
+                    swdkllj = 143000
+                elif jenis_kendaraan in ["Mobil Komersial", "Truk"]:
+                    swdkllj = 163000
+                else:  # Bus
+                    swdkllj = 166000
+                
+                # Administrative fee
+                biaya_admin = 50000
+                
+                total_pajak = pkb + swdkllj + biaya_admin
+                
+                # Calculate depreciation factor
+                umur_kendaraan = datetime.now().year - tahun_kendaraan
+                
+                st.session_state.pkb_result = {
+                    'jenis': jenis_kendaraan,
+                    'nilai_jual': nilai_jual,
+                    'provinsi': provinsi,
+                    'tarif': tarif_provinsi * 100,
+                    'bobot': bobot_koefisien,
+                    'pkb': pkb,
+                    'swdkllj': swdkllj,
+                    'admin': biaya_admin,
+                    'total': total_pajak,
+                    'umur': umur_kendaraan
+                }
+        
+        with col2:
+            st.markdown("#### Hasil Perhitungan")
+            
+            if 'pkb_result' in st.session_state:
+                result = st.session_state.pkb_result
+                
+                # Key Metrics
+                st.metric("PKB (Pajak Kendaraan)", f"Rp {result['pkb']:,.0f}")
+                st.metric("SWDKLLJ", f"Rp {result['swdkllj']:,.0f}")
+                st.metric("Total yang Harus Dibayar", f"Rp {result['total']:,.0f}")
+                
+                st.markdown("---")
+                
+                # Breakdown Chart
+                st.markdown("##### Breakdown Biaya")
+                fig = go.Figure(data=[go.Bar(
+                    x=['PKB', 'SWDKLLJ', 'Admin'],
+                    y=[result['pkb'], result['swdkllj'], result['admin']],
+                    marker_color=['#667eea', '#764ba2', '#f093fb'],
+                    text=[f"Rp {result['pkb']:,.0f}", 
+                          f"Rp {result['swdkllj']:,.0f}", 
+                          f"Rp {result['admin']:,.0f}"],
+                    textposition='auto'
+                )])
+                
+                fig.update_layout(
+                    height=300,
+                    showlegend=False,
+                    yaxis_title="Jumlah (Rp)",
+                    margin=dict(t=20, b=0, l=0, r=0)
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Detailed Table
+                st.markdown("##### Rincian Pembayaran")
+                detail_df = pd.DataFrame({
+                    'Komponen': [
+                        'Jenis Kendaraan',
+                        'Nilai Jual Kendaraan',
+                        'Provinsi',
+                        'Tarif',
+                        'Bobot/Koefisien',
+                        'PKB',
+                        'SWDKLLJ',
+                        'Biaya Admin',
+                        'Total Pajak'
+                    ],
+                    'Keterangan': [
+                        result['jenis'],
+                        f"Rp {result['nilai_jual']:,.0f}",
+                        result['provinsi'],
+                        f"{result['tarif']:.2f}%",
+                        f"{result['bobot']:.1f}",
+                        f"Rp {result['pkb']:,.0f}",
+                        f"Rp {result['swdkllj']:,.0f}",
+                        f"Rp {result['admin']:,.0f}",
+                        f"Rp {result['total']:,.0f}"
+                    ]
+                })
+                
+                st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                
+                if result['umur'] > 10:
+                    st.warning(f"⚠️ Kendaraan berusia {result['umur']} tahun. Pertimbangkan biaya tambahan untuk uji emisi.")
+                
+                # Download Button
+                st.download_button(
+                    "📥 Download Hasil (CSV)",
+                    detail_df.to_csv(index=False).encode('utf-8'),
+                    "hasil_pkb.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.info("👈 Masukkan data kendaraan dan klik tombol Hitung untuk melihat hasil")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # BPHTB Calculator (Bea Perolehan Hak atas Tanah dan Bangunan)
+    with tax_tab[6]:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.subheader("📊 Kalkulator BPHTB - Bea Perolehan Hak atas Tanah dan Bangunan")
+        st.caption("Hitung pajak pembelian/transfer properti")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("#### Input Data Transaksi")
+            
+            jenis_perolehan = st.selectbox(
+                "Jenis Perolehan",
+                ["Jual Beli", "Hibah", "Waris", "Tukar Menukar", "Lelang"]
+            )
+            
+            harga_transaksi = st.number_input(
+                "Harga Transaksi/NPOP (Rp)",
+                min_value=0,
+                value=500000000,
+                step=10000000,
+                format="%d",
+                help="Nilai Perolehan Objek Pajak sesuai akta"
+            )
+            
+            st.markdown("##### Data NJOP")
+            njop_tanah_bphtb = st.number_input(
+                "NJOP Tanah (Rp)",
+                min_value=0,
+                value=200000000,
+                step=10000000,
+                format="%d",
+                key="njop_tanah_bphtb"
+            )
+            
+            njop_bangunan_bphtb = st.number_input(
+                "NJOP Bangunan (Rp)",
+                min_value=0,
+                value=300000000,
+                step=10000000,
+                format="%d",
+                key="njop_bangunan_bphtb"
+            )
+            
+            st.markdown("##### Pengaturan")
+            
+            # NPOPTKP varies by transaction type
+            if jenis_perolehan == "Waris":
+                default_npoptkp = 300000000
+                help_text = "Untuk waris, NPOPTKP umumnya Rp 300 juta"
+            elif jenis_perolehan == "Hibah":
+                default_npoptkp = 60000000
+                help_text = "Untuk hibah, NPOPTKP umumnya Rp 60 juta"
+            else:
+                default_npoptkp = 80000000
+                help_text = "Untuk jual beli, NPOPTKP umumnya Rp 60-80 juta (bervariasi per daerah)"
+            
+            npoptkp = st.number_input(
+                "NPOPTKP - Nilai Tidak Kena Pajak (Rp)",
+                min_value=0,
+                value=default_npoptkp,
+                step=10000000,
+                format="%d",
+                help=help_text
+            )
+            
+            tarif_bphtb = st.selectbox(
+                "Tarif BPHTB",
+                ["5% (Standar)", "2.5% (Khusus Waris/Hibah Keluarga)"]
+            )
+            
+            if st.button("🧮 Hitung BPHTB", use_container_width=True):
+                # Calculate NJOP total
+                njop_total_bphtb = njop_tanah_bphtb + njop_bangunan_bphtb
+                
+                # Dasar pengenaan is the higher of transaction price or NJOP
+                dasar_pengenaan = max(harga_transaksi, njop_total_bphtb)
+                
+                # Calculate taxable amount
+                npop_kena_pajak = max(0, dasar_pengenaan - npoptkp)
+                
+                # Determine rate
+                if "2.5%" in tarif_bphtb:
+                    rate = 0.025
+                else:
+                    rate = 0.05
+                
+                # Calculate BPHTB
+                bphtb_terutang = npop_kena_pajak * rate
+                
+                # Total cost including notary and other fees (estimated)
+                biaya_notaris = harga_transaksi * 0.01  # ~1% of transaction
+                biaya_lainnya = 5000000  # Administrative fees
+                total_biaya_transaksi = harga_transaksi + bphtb_terutang + biaya_notaris + biaya_lainnya
+                
+                st.session_state.bphtb_result = {
+                    'jenis': jenis_perolehan,
+                    'harga_transaksi': harga_transaksi,
+                    'njop_tanah': njop_tanah_bphtb,
+                    'njop_bangunan': njop_bangunan_bphtb,
+                    'njop_total': njop_total_bphtb,
+                    'dasar_pengenaan': dasar_pengenaan,
+                    'npoptkp': npoptkp,
+                    'npop_kena_pajak': npop_kena_pajak,
+                    'tarif': rate * 100,
+                    'bphtb': bphtb_terutang,
+                    'biaya_notaris': biaya_notaris,
+                    'biaya_lainnya': biaya_lainnya,
+                    'total_biaya': total_biaya_transaksi
+                }
+        
+        with col2:
+            st.markdown("#### Hasil Perhitungan")
+            
+            if 'bphtb_result' in st.session_state:
+                result = st.session_state.bphtb_result
+                
+                # Key Metrics
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("Dasar Pengenaan", f"Rp {result['dasar_pengenaan']:,.0f}")
+                    st.metric("NPOP Kena Pajak", f"Rp {result['npop_kena_pajak']:,.0f}")
+                
+                with col_b:
+                    st.metric("BPHTB Terutang", f"Rp {result['bphtb']:,.0f}", 
+                             delta=f"{result['tarif']:.1f}%")
+                    st.metric("Total Biaya Transaksi", f"Rp {result['total_biaya']:,.0f}")
+                
+                st.markdown("---")
+                
+                # Cost Breakdown
+                st.markdown("##### Breakdown Biaya Transaksi")
+                fig = go.Figure(data=[go.Pie(
+                    labels=['Harga Properti', 'BPHTB', 'Notaris', 'Lainnya'],
+                    values=[result['harga_transaksi'], result['bphtb'], 
+                           result['biaya_notaris'], result['biaya_lainnya']],
+                    hole=.4,
+                    marker_colors=['#667eea', '#764ba2', '#f093fb', '#a8edea']
+                )])
+                
+                fig.update_layout(
+                    height=250,
+                    showlegend=True,
+                    margin=dict(t=0, b=0, l=0, r=0)
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Detailed Breakdown
+                st.markdown("##### Rincian Perhitungan")
+                detail_df = pd.DataFrame({
+                    'Keterangan': [
+                        'Jenis Perolehan',
+                        'Harga Transaksi',
+                        'NJOP Total',
+                        'Dasar Pengenaan',
+                        'NPOPTKP',
+                        'NPOP Kena Pajak',
+                        'Tarif BPHTB',
+                        'BPHTB Terutang',
+                        'Biaya Notaris (est.)',
+                        'Biaya Lainnya (est.)',
+                        'Total Biaya Transaksi'
+                    ],
+                    'Nilai': [
+                        result['jenis'],
+                        f"Rp {result['harga_transaksi']:,.0f}",
+                        f"Rp {result['njop_total']:,.0f}",
+                        f"Rp {result['dasar_pengenaan']:,.0f}",
+                        f"(Rp {result['npoptkp']:,.0f})",
+                        f"Rp {result['npop_kena_pajak']:,.0f}",
+                        f"{result['tarif']:.1f}%",
+                        f"Rp {result['bphtb']:,.0f}",
+                        f"Rp {result['biaya_notaris']:,.0f}",
+                        f"Rp {result['biaya_lainnya']:,.0f}",
+                        f"Rp {result['total_biaya']:,.0f}"
+                    ]
+                })
+                
+                st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                
+                # Important Notes
+                if result['dasar_pengenaan'] > result['harga_transaksi']:
+                    st.warning("⚠️ NJOP lebih tinggi dari harga transaksi. Dasar pengenaan menggunakan NJOP.")
+                
+                st.info("💡 **Catatan:** Biaya notaris dan biaya lainnya adalah estimasi. Konsultasikan dengan notaris untuk biaya aktual.")
+                
+                # Download Button
+                st.download_button(
+                    "📥 Download Hasil (CSV)",
+                    detail_df.to_csv(index=False).encode('utf-8'),
+                    "hasil_bphtb.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.info("👈 Masukkan data transaksi dan klik tombol Hitung untuk melihat hasil")
         
         st.markdown("</div>", unsafe_allow_html=True)
 
