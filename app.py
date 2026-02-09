@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
+from audit_logger import save_audit_log, load_audit_logs, export_audit_logs, get_audit_summary
 
 # Page Configuration
 st.set_page_config(
@@ -196,9 +197,30 @@ with st.sidebar:
     st.markdown("### 💼 TaxPro Indonesia")
     st.markdown("---")
     
+    # User Info for Audit Trail
+    st.markdown("### 👤 Info Pengguna")
+    if 'user_name' not in st.session_state:
+        st.session_state.user_name = ""
+    if 'company_name' not in st.session_state:
+        st.session_state.company_name = ""
+    
+    st.session_state.user_name = st.text_input(
+        "Nama Pengguna",
+        value=st.session_state.user_name,
+        placeholder="Masukkan nama Anda"
+    )
+    
+    st.session_state.company_name = st.text_input(
+        "Nama Perusahaan",
+        value=st.session_state.company_name,
+        placeholder="Masukkan nama perusahaan"
+    )
+    
+    st.markdown("---")
+    
     page = st.radio(
         "Navigasi",
-        ["🏠 Beranda", "💰 Kalkulator Pajak", "🏭 Biaya Produksi", "📞 Kontak"],
+        ["🏠 Beranda", "💰 Kalkulator Pajak", "🏭 Biaya Produksi", "📋 Audit Trail", "📞 Kontak"],
         label_visibility="collapsed"
     )
     
@@ -404,6 +426,15 @@ elif page == "💰 Kalkulator Pajak":
                     'pajak_bulanan': pajak_bulanan,
                     'gaji_netto': gaji_netto_bulanan
                 }
+                
+                # Save audit log
+                save_audit_log(
+                    calc_type="PPh 21",
+                    user_name=st.session_state.get('user_name', 'Anonymous'),
+                    company_name=st.session_state.get('company_name', 'N/A'),
+                    input_data={'gaji_bruto': gaji_bruto, 'status': status, 'bonus': bonus, 'potongan': potongan},
+                    output_data={'pajak_bulanan': pajak_bulanan, 'pajak_tahunan': pajak, 'gaji_netto': gaji_netto_bulanan}
+                )
         
         with col2:
             st.markdown("#### Hasil Perhitungan")
@@ -504,6 +535,15 @@ elif page == "💰 Kalkulator Pajak":
                     'netto': jumlah_netto,
                     'npwp': punya_npwp
                 }
+                
+                # Save audit log
+                save_audit_log(
+                    calc_type="PPh 23",
+                    user_name=st.session_state.get('user_name', 'Anonymous'),
+                    company_name=st.session_state.get('company_name', 'N/A'),
+                    input_data={'jenis': jenis_penghasilan, 'bruto': jumlah_bruto, 'npwp': punya_npwp},
+                    output_data={'pph23': pph23, 'tarif': tarif_final * 100, 'netto': jumlah_netto}
+                )
         
         with col2:
             st.markdown("#### Hasil Perhitungan")
@@ -586,6 +626,15 @@ elif page == "💰 Kalkulator Pajak":
                     'ppn': ppn,
                     'total': harga_total
                 }
+                
+                # Save audit log
+                save_audit_log(
+                    calc_type="PPN",
+                    user_name=st.session_state.get('user_name', 'Anonymous'),
+                    company_name=st.session_state.get('company_name', 'N/A'),
+                    input_data={'jenis': jenis_hitung, 'jumlah': jumlah, 'tarif': tarif * 100},
+                    output_data={'dpp': dpp, 'ppn': ppn, 'total': harga_total}
+                )
         
         with col2:
             st.markdown("#### Hasil Perhitungan")
@@ -749,6 +798,15 @@ elif page == "💰 Kalkulator Pajak":
                         'laba_netto': laba_netto,
                         'is_umkm': is_umkm
                     }
+                    
+                    # Save audit log
+                    save_audit_log(
+                        calc_type="PPh Badan",
+                        user_name=st.session_state.get('user_name', 'Anonymous'),
+                        company_name=st.session_state.get('company_name', 'N/A'),
+                        input_data={'omzet': omzet, 'biaya': biaya, 'is_umkm': is_umkm},
+                        output_data={'laba_fiskal': laba_fiskal, 'pph_badan': pph_badan_terutang, 'pph_kurang_bayar': pph_kurang_bayar}
+                    )
             
             with col2:
                 st.markdown("#### Hasil Perhitungan")
@@ -1285,6 +1343,15 @@ elif page == "💰 Kalkulator Pajak":
                     'tarif': rate * 100,
                     'pbb': pbb_terutang
                 }
+                
+                # Save audit log
+                save_audit_log(
+                    calc_type="PBB",
+                    user_name=st.session_state.get('user_name', 'Anonymous'),
+                    company_name=st.session_state.get('company_name', 'N/A'),
+                    input_data={'luas_tanah': luas_tanah, 'njop_tanah_per_m2': njop_tanah_per_m2, 'luas_bangunan': luas_bangunan, 'njop_bangunan_per_m2': njop_bangunan_per_m2},
+                    output_data={'njop_total': njop_total, 'njop_kena_pajak': njop_kena_pajak, 'pbb': pbb_terutang}
+                )
         
         with col2:
             st.markdown("#### Hasil Perhitungan")
@@ -1447,6 +1514,15 @@ elif page == "💰 Kalkulator Pajak":
                     'total': total_pajak,
                     'umur': umur_kendaraan
                 }
+                
+                # Save audit log
+                save_audit_log(
+                    calc_type="PKB",
+                    user_name=st.session_state.get('user_name', 'Anonymous'),
+                    company_name=st.session_state.get('company_name', 'N/A'),
+                    input_data={'jenis': jenis_kendaraan, 'nilai_jual': nilai_jual, 'provinsi': provinsi, 'tahun': tahun_kendaraan},
+                    output_data={'pkb': pkb, 'swdkllj': swdkllj, 'total': total_pajak}
+                )
         
         with col2:
             st.markdown("#### Hasil Perhitungan")
@@ -1637,6 +1713,15 @@ elif page == "💰 Kalkulator Pajak":
                     'biaya_lainnya': biaya_lainnya,
                     'total_biaya': total_biaya_transaksi
                 }
+                
+                # Save audit log
+                save_audit_log(
+                    calc_type="BPHTB",
+                    user_name=st.session_state.get('user_name', 'Anonymous'),
+                    company_name=st.session_state.get('company_name', 'N/A'),
+                    input_data={'jenis': jenis_perolehan, 'harga_transaksi': harga_transaksi, 'njop_total': njop_total_bphtb},
+                    output_data={'dasar_pengenaan': dasar_pengenaan, 'bphtb': bphtb_terutang, 'total_biaya': total_biaya_transaksi}
+                )
         
         with col2:
             st.markdown("#### Hasil Perhitungan")
@@ -1849,6 +1934,213 @@ elif page == "🏭 Biaya Produksi":
         else:
             st.info("👈 Masukkan data biaya dan klik tombol Hitung untuk melihat analisis")
     
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page == "📋 Audit Trail":
+    st.markdown("""
+    <div class="main-header">
+        <h1>📋 Audit Trail</h1>
+        <p>Riwayat Perhitungan Pajak untuk Audit & Compliance</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Summary Statistics
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("📊 Ringkasan Audit")
+    
+    summary = get_audit_summary()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Perhitungan", f"{summary['total_calculations']:,}")
+    with col2:
+        st.metric("Total Pengguna", summary['unique_users'])
+    with col3:
+        st.metric("Total Perusahaan", summary['unique_companies'])
+    with col4:
+        most_used = max(summary['calculations_by_type'].items(), key=lambda x: x[1])[0] if summary['calculations_by_type'] else "N/A"
+        st.metric("Paling Sering", most_used)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Calculations by Type Chart
+    if summary['calculations_by_type']:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.subheader("📈 Distribusi Perhitungan per Jenis Pajak")
+        
+        fig = go.Figure(data=[go.Bar(
+            x=list(summary['calculations_by_type'].keys()),
+            y=list(summary['calculations_by_type'].values()),
+            marker_color='#667eea',
+            text=list(summary['calculations_by_type'].values()),
+            textposition='auto'
+        )])
+        
+        fig.update_layout(
+            height=300,
+            xaxis_title="Jenis Pajak",
+            yaxis_title="Jumlah Perhitungan",
+            showlegend=False,
+            margin=dict(t=20, b=0, l=0, r=0)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Filters
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("🔍 Filter & Pencarian")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        start_date = st.date_input(
+            "Tanggal Mulai",
+            value=None,
+            help="Filter berdasarkan tanggal mulai"
+        )
+    
+    with col2:
+        end_date = st.date_input(
+            "Tanggal Akhir",
+            value=None,
+            help="Filter berdasarkan tanggal akhir"
+        )
+    
+    with col3:
+        calc_types = ["Semua", "PPh 21", "PPh 23", "PPN", "PPh Badan", "PBB", "PKB", "BPHTB"]
+        selected_calc_type = st.selectbox(
+            "Jenis Pajak",
+            calc_types
+        )
+    
+    search_user = st.text_input(
+        "Cari Nama Pengguna",
+        placeholder="Ketik nama pengguna untuk mencari..."
+    )
+    
+    if st.button("🔍 Terapkan Filter", use_container_width=True):
+        st.session_state.filter_applied = True
+        st.session_state.filter_params = {
+            'start_date': str(start_date) if start_date else None,
+            'end_date': str(end_date) if end_date else None,
+            'calc_type': selected_calc_type,
+            'user_name': search_user
+        }
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Audit Logs Table
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.subheader("📋 Riwayat Perhitungan")
+    
+    # Load logs with filters
+    if 'filter_applied' in st.session_state and st.session_state.filter_applied:
+        params = st.session_state.filter_params
+        df_logs = export_audit_logs(
+            start_date=params['start_date'],
+            end_date=params['end_date'],
+            calc_type=params['calc_type'],
+            user_name=params['user_name']
+        )
+    else:
+        df_logs = load_audit_logs(limit=100)  # Load last 100 records
+    
+    if not df_logs.empty:
+        st.info(f"📊 Menampilkan {len(df_logs)} record")
+        
+        # Display table (without JSON columns for readability)
+        display_df = df_logs[['timestamp', 'session_id', 'user_name', 'company_name', 'calculation_type']].copy()
+        display_df.columns = ['Waktu', 'Session ID', 'Pengguna', 'Perusahaan', 'Jenis Pajak']
+        
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        # Export Options
+        st.markdown("---")
+        st.markdown("### 📥 Export Data")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Export filtered data
+            csv_data = df_logs.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                "📥 Download Audit Log (CSV)",
+                csv_data,
+                f"audit_trail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                "text/csv",
+                use_container_width=True
+            )
+        
+        with col2:
+            # Export summary report
+            if st.button("📊 Generate Summary Report", use_container_width=True):
+                summary_text = f"""
+AUDIT TRAIL SUMMARY REPORT
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+Total Calculations: {len(df_logs)}
+Date Range: {df_logs['timestamp'].min()} to {df_logs['timestamp'].max()}
+
+Calculations by Type:
+{df_logs['calculation_type'].value_counts().to_string()}
+
+Unique Users: {df_logs['user_name'].nunique()}
+Unique Companies: {df_logs['company_name'].nunique()}
+                """
+                
+                st.download_button(
+                    "📥 Download Summary Report (TXT)",
+                    summary_text.encode('utf-8'),
+                    f"audit_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    "text/plain",
+                    use_container_width=True
+                )
+        
+        # Detail View
+        st.markdown("---")
+        st.markdown("### 🔍 Detail Perhitungan")
+        
+        session_ids = df_logs['session_id'].tolist()
+        selected_session = st.selectbox(
+            "Pilih Session ID untuk melihat detail",
+            ["Pilih..."] + session_ids
+        )
+        
+        if selected_session and selected_session != "Pilih...":
+            from audit_logger import get_calculation_details
+            import json
+            
+            details = get_calculation_details(selected_session)
+            
+            if details:
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    st.markdown("#### 📥 Input Data")
+                    st.json(details['input_data'])
+                
+                with col_b:
+                    st.markdown("#### 📊 Output Data")
+                    st.json(details['output_data'])
+                
+                st.info(f"**Waktu:** {details['timestamp']} | **User:** {details['user_name']} | **Perusahaan:** {details['company_name']}")
+    else:
+        st.warning("📭 Belum ada data audit trail. Lakukan perhitungan pajak untuk mulai mencatat audit log.")
+        st.info("💡 **Tip:** Isi nama pengguna dan perusahaan di sidebar sebelum melakukan perhitungan untuk audit trail yang lebih lengkap.")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Important Notes
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.markdown("### ⚠️ Catatan Penting")
+    st.markdown("""
+    - **Audit trail** mencatat semua perhitungan pajak untuk keperluan audit dan compliance
+    - Data disimpan secara lokal di file `audit_logs/tax_calculations.csv`
+    - Pastikan untuk **backup** file audit log secara berkala
+    - Untuk keamanan data, jangan bagikan file audit log kepada pihak yang tidak berwenang
+    - Session ID unik untuk setiap perhitungan memudahkan tracking
+    """)
     st.markdown("</div>", unsafe_allow_html=True)
 
 elif page == "📞 Kontak":
