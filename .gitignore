@@ -43,3 +43,4 @@ Thumbs.db
 # Legacy files (not used in Streamlit version)
 index.html
 styles.css
+.vercel
